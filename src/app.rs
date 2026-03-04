@@ -123,15 +123,13 @@ impl eframe::App for PicoNoteApp {
                     self.save();
                 }
             }
-            if ctx.input(|i| i.key_pressed(egui::Key::O)) {
-                if self.guard_unsaved(PendingAction::Open) {
-                    self.open();
-                }
+            if ctx.input(|i| i.key_pressed(egui::Key::O)) && self.guard_unsaved(PendingAction::Open)
+            {
+                self.open();
             }
-            if ctx.input(|i| i.key_pressed(egui::Key::N)) {
-                if self.guard_unsaved(PendingAction::New) {
-                    self.new_file();
-                }
+            if ctx.input(|i| i.key_pressed(egui::Key::N)) && self.guard_unsaved(PendingAction::New)
+            {
+                self.new_file();
             }
             if ctx.input(|i| i.key_pressed(egui::Key::Equals)) {
                 self.config.font_size = (self.config.font_size + 1.0).min(28.0);
@@ -144,16 +142,14 @@ impl eframe::App for PicoNoteApp {
         }
 
         // --- Handle window close request ---
-        if ctx.input(|i| i.viewport().close_requested()) {
-            if self.file_state.dirty {
-                ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
-                self.pending_action = Some(PendingAction::Quit);
-            }
+        if ctx.input(|i| i.viewport().close_requested()) && self.file_state.dirty {
+            ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+            self.pending_action = Some(PendingAction::Quit);
         }
 
         // --- Unsaved changes dialog ---
         if self.pending_action.is_some() {
-            let action = self.pending_action.clone();
+            let action = self.pending_action;
             egui::Window::new("Unsaved Changes")
                 .collapsible(false)
                 .resizable(false)
@@ -210,7 +206,10 @@ impl eframe::App for PicoNoteApp {
                         ui.close_menu();
                     }
                     if ui
-                        .add(egui::Button::new("Save As...").shortcut_text(shortcut_shift_label("S")))
+                        .add(
+                            egui::Button::new("Save As...")
+                                .shortcut_text(shortcut_shift_label("S")),
+                        )
                         .clicked()
                     {
                         self.save_as();
@@ -242,7 +241,10 @@ impl eframe::App for PicoNoteApp {
                     ui.separator();
                     ui.label("Font Size");
                     if ui
-                        .add(egui::Slider::new(&mut self.config.font_size, 10.0..=28.0).suffix(" px"))
+                        .add(
+                            egui::Slider::new(&mut self.config.font_size, 10.0..=28.0)
+                                .suffix(" px"),
+                        )
                         .changed()
                     {
                         config::save_config(&self.config);
@@ -269,11 +271,7 @@ impl eframe::App for PicoNoteApp {
                 ));
                 if let Some(path) = &self.file_state.path {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        ui.label(
-                            egui::RichText::new(path.to_string_lossy())
-                                .small()
-                                .weak(),
-                        );
+                        ui.label(egui::RichText::new(path.to_string_lossy()).small().weak());
                     });
                 }
             });

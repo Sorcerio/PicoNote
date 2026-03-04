@@ -132,7 +132,11 @@ fn md_style_to_format(md: &MdStyle, c: &Colors, base_size: f32) -> TextFormat {
     let color = if md.syntax_marker {
         // Syntax markers are always dimmed, but tinted by context
         if md.task_checkbox {
-            if md.task_checked { c.task_checked } else { c.task }
+            if md.task_checked {
+                c.task_checked
+            } else {
+                c.task
+            }
         } else {
             c.marker
         }

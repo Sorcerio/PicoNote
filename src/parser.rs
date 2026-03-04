@@ -44,27 +44,39 @@ pub fn parse_markdown(input: &str) -> Vec<MdSpan> {
     for line in LineIter::new(input) {
         if in_code_block {
             if is_code_fence(line) {
-                push(&mut spans, line, MdStyle {
-                    code_block: true,
-                    syntax_marker: true,
-                    ..Default::default()
-                });
+                push(
+                    &mut spans,
+                    line,
+                    MdStyle {
+                        code_block: true,
+                        syntax_marker: true,
+                        ..Default::default()
+                    },
+                );
                 in_code_block = false;
             } else {
-                push(&mut spans, line, MdStyle {
-                    code_block: true,
-                    ..Default::default()
-                });
+                push(
+                    &mut spans,
+                    line,
+                    MdStyle {
+                        code_block: true,
+                        ..Default::default()
+                    },
+                );
             }
             continue;
         }
 
         if is_code_fence(line) {
-            push(&mut spans, line, MdStyle {
-                code_block: true,
-                syntax_marker: true,
-                ..Default::default()
-            });
+            push(
+                &mut spans,
+                line,
+                MdStyle {
+                    code_block: true,
+                    syntax_marker: true,
+                    ..Default::default()
+                },
+            );
             in_code_block = true;
             continue;
         }
@@ -127,11 +139,15 @@ fn parse_line(line: &str, spans: &mut Vec<MdSpan>) {
 
     // Check for table alignment row: |:---|:---:|---:|
     if is_table_align_row(content) {
-        push(spans, line, MdStyle {
-            table_align: true,
-            syntax_marker: true,
-            ..Default::default()
-        });
+        push(
+            spans,
+            line,
+            MdStyle {
+                table_align: true,
+                syntax_marker: true,
+                ..Default::default()
+            },
+        );
         return;
     }
 
@@ -168,11 +184,15 @@ fn parse_line(line: &str, spans: &mut Vec<MdSpan>) {
 
     // Append heading ID suffix if present
     if let Some(id_text) = heading_id_suffix {
-        push(spans, id_text, MdStyle {
-            heading_id: true,
-            syntax_marker: true,
-            ..Default::default()
-        });
+        push(
+            spans,
+            id_text,
+            MdStyle {
+                heading_id: true,
+                syntax_marker: true,
+                ..Default::default()
+            },
+        );
     }
 
     // Re-append the newline if present
@@ -183,7 +203,8 @@ fn parse_line(line: &str, spans: &mut Vec<MdSpan>) {
     }
 }
 
-fn parse_block_prefix<'a>(line: &'a str) -> (&'a str, &'a str, MdStyle) {
+#[allow(clippy::manual_strip)]
+fn parse_block_prefix(line: &str) -> (&str, &str, MdStyle) {
     // Heading: # through ######
     if let Some(level) = heading_level(line) {
         let prefix_len = level as usize + 1; // "## " = 3 chars
@@ -249,23 +270,23 @@ fn parse_block_prefix<'a>(line: &'a str) -> (&'a str, &'a str, MdStyle) {
     }
 
     // Footnote definition: [^id]:
-    if line.starts_with("[^") {
-        if let Some(close) = line.find("]:") {
-            let prefix_end = close + 2;
-            let prefix_end = if line.as_bytes().get(prefix_end) == Some(&b' ') {
-                prefix_end + 1
-            } else {
-                prefix_end
-            };
-            return (
-                &line[..prefix_end],
-                &line[prefix_end..],
-                MdStyle {
-                    footnote_def: true,
-                    ..Default::default()
-                },
-            );
-        }
+    if line.starts_with("[^")
+        && let Some(close) = line.find("]:")
+    {
+        let prefix_end = close + 2;
+        let prefix_end = if line.as_bytes().get(prefix_end) == Some(&b' ') {
+            prefix_end + 1
+        } else {
+            prefix_end
+        };
+        return (
+            &line[..prefix_end],
+            &line[prefix_end..],
+            MdStyle {
+                footnote_def: true,
+                ..Default::default()
+            },
+        );
     }
 
     // Definition list: starts with ": "
@@ -317,12 +338,12 @@ fn heading_level(line: &str) -> Option<u8> {
     None
 }
 
-fn extract_heading_id<'a>(body: &'a str) -> (&'a str, Option<&'a str>) {
+fn extract_heading_id(body: &str) -> (&str, Option<&str>) {
     // Look for trailing {#some-id}
-    if let Some(start) = body.rfind(" {#") {
-        if body.ends_with('}') {
-            return (&body[..start], Some(&body[start..]));
-        }
+    if let Some(start) = body.rfind(" {#")
+        && body.ends_with('}')
+    {
+        return (&body[..start], Some(&body[start..]));
     }
     (body, None)
 }
@@ -346,11 +367,15 @@ fn parse_table_row(body: &str, spans: &mut Vec<MdSpan>) {
     let bytes = body.as_bytes();
     while i < bytes.len() {
         if bytes[i] == b'|' {
-            push(spans, &body[i..i + 1], MdStyle {
-                table_pipe: true,
-                syntax_marker: true,
-                ..Default::default()
-            });
+            push(
+                spans,
+                &body[i..i + 1],
+                MdStyle {
+                    table_pipe: true,
+                    syntax_marker: true,
+                    ..Default::default()
+                },
+            );
             i += 1;
         } else {
             // Find next pipe or end
@@ -372,179 +397,216 @@ fn parse_inline(body: &str, base_style: &MdStyle, spans: &mut Vec<MdSpan>) {
 
     while i < len {
         // Inline code: `text`
-        if bytes[i] == b'`' {
-            if let Some(end) = find_closing(body, i + 1, "`") {
-                flush_plain(body, plain_start, i, base_style, spans);
-                let mut marker = base_style.clone();
-                marker.code = true;
-                marker.syntax_marker = true;
-                push(spans, &body[i..i + 1], marker);
-                let mut code = base_style.clone();
-                code.code = true;
-                push(spans, &body[i + 1..end], code);
-                let mut marker2 = base_style.clone();
-                marker2.code = true;
-                marker2.syntax_marker = true;
-                push(spans, &body[end..end + 1], marker2);
-                i = end + 1;
-                plain_start = i;
-                continue;
-            }
+        if bytes[i] == b'`'
+            && let Some(end) = find_closing(body, i + 1, "`")
+        {
+            flush_plain(body, plain_start, i, base_style, spans);
+            let mut marker = base_style.clone();
+            marker.code = true;
+            marker.syntax_marker = true;
+            push(spans, &body[i..i + 1], marker);
+            let mut code = base_style.clone();
+            code.code = true;
+            push(spans, &body[i + 1..end], code);
+            let mut marker2 = base_style.clone();
+            marker2.code = true;
+            marker2.syntax_marker = true;
+            push(spans, &body[end..end + 1], marker2);
+            i = end + 1;
+            plain_start = i;
+            continue;
         }
 
         // Bold: **text**
-        if i + 1 < len && bytes[i] == b'*' && bytes[i + 1] == b'*' {
-            if let Some(end) = find_closing(body, i + 2, "**") {
-                flush_plain(body, plain_start, i, base_style, spans);
-                let mut marker = base_style.clone();
-                marker.bold = true;
-                marker.syntax_marker = true;
-                push(spans, &body[i..i + 2], marker);
-                let mut bold = base_style.clone();
-                bold.bold = true;
-                push(spans, &body[i + 2..end], bold);
-                let mut marker2 = base_style.clone();
-                marker2.bold = true;
-                marker2.syntax_marker = true;
-                push(spans, &body[end..end + 2], marker2);
-                i = end + 2;
-                plain_start = i;
-                continue;
-            }
+        if i + 1 < len
+            && bytes[i] == b'*'
+            && bytes[i + 1] == b'*'
+            && let Some(end) = find_closing(body, i + 2, "**")
+        {
+            flush_plain(body, plain_start, i, base_style, spans);
+            let mut marker = base_style.clone();
+            marker.bold = true;
+            marker.syntax_marker = true;
+            push(spans, &body[i..i + 2], marker);
+            let mut bold = base_style.clone();
+            bold.bold = true;
+            push(spans, &body[i + 2..end], bold);
+            let mut marker2 = base_style.clone();
+            marker2.bold = true;
+            marker2.syntax_marker = true;
+            push(spans, &body[end..end + 2], marker2);
+            i = end + 2;
+            plain_start = i;
+            continue;
         }
 
         // Italic: *text*
-        if bytes[i] == b'*' && (i + 1 >= len || bytes[i + 1] != b'*') {
-            if let Some(end) = find_closing_single_star(body, i + 1) {
-                flush_plain(body, plain_start, i, base_style, spans);
-                let mut marker = base_style.clone();
-                marker.italic = true;
-                marker.syntax_marker = true;
-                push(spans, &body[i..i + 1], marker);
-                let mut ital = base_style.clone();
-                ital.italic = true;
-                push(spans, &body[i + 1..end], ital);
-                let mut marker2 = base_style.clone();
-                marker2.italic = true;
-                marker2.syntax_marker = true;
-                push(spans, &body[end..end + 1], marker2);
-                i = end + 1;
-                plain_start = i;
-                continue;
-            }
+        if bytes[i] == b'*'
+            && (i + 1 >= len || bytes[i + 1] != b'*')
+            && let Some(end) = find_closing_single_star(body, i + 1)
+        {
+            flush_plain(body, plain_start, i, base_style, spans);
+            let mut marker = base_style.clone();
+            marker.italic = true;
+            marker.syntax_marker = true;
+            push(spans, &body[i..i + 1], marker);
+            let mut ital = base_style.clone();
+            ital.italic = true;
+            push(spans, &body[i + 1..end], ital);
+            let mut marker2 = base_style.clone();
+            marker2.italic = true;
+            marker2.syntax_marker = true;
+            push(spans, &body[end..end + 1], marker2);
+            i = end + 1;
+            plain_start = i;
+            continue;
         }
 
         // Strikethrough: ~~text~~
-        if i + 1 < len && bytes[i] == b'~' && bytes[i + 1] == b'~' {
-            if let Some(end) = find_closing(body, i + 2, "~~") {
-                flush_plain(body, plain_start, i, base_style, spans);
-                let mut marker = base_style.clone();
-                marker.strikethrough = true;
-                marker.syntax_marker = true;
-                push(spans, &body[i..i + 2], marker);
-                let mut strike = base_style.clone();
-                strike.strikethrough = true;
-                push(spans, &body[i + 2..end], strike);
-                let mut marker2 = base_style.clone();
-                marker2.strikethrough = true;
-                marker2.syntax_marker = true;
-                push(spans, &body[end..end + 2], marker2);
-                i = end + 2;
-                plain_start = i;
-                continue;
-            }
+        if i + 1 < len
+            && bytes[i] == b'~'
+            && bytes[i + 1] == b'~'
+            && let Some(end) = find_closing(body, i + 2, "~~")
+        {
+            flush_plain(body, plain_start, i, base_style, spans);
+            let mut marker = base_style.clone();
+            marker.strikethrough = true;
+            marker.syntax_marker = true;
+            push(spans, &body[i..i + 2], marker);
+            let mut strike = base_style.clone();
+            strike.strikethrough = true;
+            push(spans, &body[i + 2..end], strike);
+            let mut marker2 = base_style.clone();
+            marker2.strikethrough = true;
+            marker2.syntax_marker = true;
+            push(spans, &body[end..end + 2], marker2);
+            i = end + 2;
+            plain_start = i;
+            continue;
         }
 
         // Highlight: ==text==
-        if i + 1 < len && bytes[i] == b'=' && bytes[i + 1] == b'=' {
-            if let Some(end) = find_closing(body, i + 2, "==") {
-                flush_plain(body, plain_start, i, base_style, spans);
-                let mut marker = base_style.clone();
-                marker.highlight = true;
-                marker.syntax_marker = true;
-                push(spans, &body[i..i + 2], marker);
-                let mut hl = base_style.clone();
-                hl.highlight = true;
-                push(spans, &body[i + 2..end], hl);
-                let mut marker2 = base_style.clone();
-                marker2.highlight = true;
-                marker2.syntax_marker = true;
-                push(spans, &body[end..end + 2], marker2);
-                i = end + 2;
-                plain_start = i;
-                continue;
-            }
+        if i + 1 < len
+            && bytes[i] == b'='
+            && bytes[i + 1] == b'='
+            && let Some(end) = find_closing(body, i + 2, "==")
+        {
+            flush_plain(body, plain_start, i, base_style, spans);
+            let mut marker = base_style.clone();
+            marker.highlight = true;
+            marker.syntax_marker = true;
+            push(spans, &body[i..i + 2], marker);
+            let mut hl = base_style.clone();
+            hl.highlight = true;
+            push(spans, &body[i + 2..end], hl);
+            let mut marker2 = base_style.clone();
+            marker2.highlight = true;
+            marker2.syntax_marker = true;
+            push(spans, &body[end..end + 2], marker2);
+            i = end + 2;
+            plain_start = i;
+            continue;
         }
 
         // Footnote reference: [^id]
-        if bytes[i] == b'[' && i + 1 < len && bytes[i + 1] == b'^' {
-            if let Some(close) = body[i + 2..].find(']') {
-                let end = i + 2 + close;
-                // Make sure it's not a footnote definition (no colon after])
-                if end + 1 >= len || bytes[end + 1] != b':' {
-                    flush_plain(body, plain_start, i, base_style, spans);
-                    push(spans, &body[i..end + 1], MdStyle {
+        if bytes[i] == b'['
+            && i + 1 < len
+            && bytes[i + 1] == b'^'
+            && let Some(close) = body[i + 2..].find(']')
+        {
+            let end = i + 2 + close;
+            // Make sure it's not a footnote definition (no colon after])
+            if end + 1 >= len || bytes[end + 1] != b':' {
+                flush_plain(body, plain_start, i, base_style, spans);
+                push(
+                    spans,
+                    &body[i..end + 1],
+                    MdStyle {
                         footnote_ref: true,
                         syntax_marker: true,
                         ..Default::default()
-                    });
-                    i = end + 1;
-                    plain_start = i;
-                    continue;
-                }
+                    },
+                );
+                i = end + 1;
+                plain_start = i;
+                continue;
             }
         }
 
         // Link: [text](url)
-        if bytes[i] == b'[' {
-            if let Some((text_end, url_end)) = find_link(body, i) {
-                flush_plain(body, plain_start, i, base_style, spans);
-                // [
-                push(spans, &body[i..i + 1], MdStyle {
+        if bytes[i] == b'['
+            && let Some((text_end, url_end)) = find_link(body, i)
+        {
+            flush_plain(body, plain_start, i, base_style, spans);
+            // [
+            push(
+                spans,
+                &body[i..i + 1],
+                MdStyle {
                     link_text: true,
                     syntax_marker: true,
                     ..Default::default()
-                });
-                // text
-                push(spans, &body[i + 1..text_end], MdStyle {
+                },
+            );
+            // text
+            push(
+                spans,
+                &body[i + 1..text_end],
+                MdStyle {
                     link_text: true,
                     ..Default::default()
-                });
-                // ](
-                push(spans, &body[text_end..text_end + 2], MdStyle {
+                },
+            );
+            // ](
+            push(
+                spans,
+                &body[text_end..text_end + 2],
+                MdStyle {
                     link_url: true,
                     syntax_marker: true,
                     ..Default::default()
-                });
-                // url
-                push(spans, &body[text_end + 2..url_end], MdStyle {
+                },
+            );
+            // url
+            push(
+                spans,
+                &body[text_end + 2..url_end],
+                MdStyle {
                     link_url: true,
                     ..Default::default()
-                });
-                // )
-                push(spans, &body[url_end..url_end + 1], MdStyle {
+                },
+            );
+            // )
+            push(
+                spans,
+                &body[url_end..url_end + 1],
+                MdStyle {
                     link_url: true,
                     syntax_marker: true,
                     ..Default::default()
-                });
-                i = url_end + 1;
-                plain_start = i;
-                continue;
-            }
+                },
+            );
+            i = url_end + 1;
+            plain_start = i;
+            continue;
         }
 
         // Emoji shortcode: :name:
-        if bytes[i] == b':' {
-            if let Some(end) = find_emoji_shortcode(body, i) {
-                flush_plain(body, plain_start, i, base_style, spans);
-                push(spans, &body[i..end + 1], MdStyle {
+        if bytes[i] == b':'
+            && let Some(end) = find_emoji_shortcode(body, i)
+        {
+            flush_plain(body, plain_start, i, base_style, spans);
+            push(
+                spans,
+                &body[i..end + 1],
+                MdStyle {
                     emoji_shortcode: true,
                     ..Default::default()
-                });
-                i = end + 1;
-                plain_start = i;
-                continue;
-            }
+                },
+            );
+            i = end + 1;
+            plain_start = i;
+            continue;
         }
 
         // Bare URL: https:// or http://
@@ -554,10 +616,14 @@ fn parse_inline(body: &str, base_style: &MdStyle, spans: &mut Vec<MdSpan>) {
             let url_end = find_url_end(body, i);
             if url_end > i + 8 {
                 flush_plain(body, plain_start, i, base_style, spans);
-                push(spans, &body[i..url_end], MdStyle {
-                    link_url: true,
-                    ..Default::default()
-                });
+                push(
+                    spans,
+                    &body[i..url_end],
+                    MdStyle {
+                        link_url: true,
+                        ..Default::default()
+                    },
+                );
                 i = url_end;
                 plain_start = i;
                 continue;
@@ -571,7 +637,13 @@ fn parse_inline(body: &str, base_style: &MdStyle, spans: &mut Vec<MdSpan>) {
     flush_plain(body, plain_start, len, base_style, spans);
 }
 
-fn flush_plain(body: &str, start: usize, end: usize, base_style: &MdStyle, spans: &mut Vec<MdSpan>) {
+fn flush_plain(
+    body: &str,
+    start: usize,
+    end: usize,
+    base_style: &MdStyle,
+    spans: &mut Vec<MdSpan>,
+) {
     if start < end {
         push(spans, &body[start..end], base_style.clone());
     }
@@ -665,7 +737,14 @@ fn find_url_end(text: &str, start: usize) -> usize {
     let mut i = start;
     while i < bytes.len() {
         let b = bytes[i];
-        if b == b' ' || b == b'\n' || b == b'\t' || b == b')' || b == b'>' || b == b'"' || b == b'\'' {
+        if b == b' '
+            || b == b'\n'
+            || b == b'\t'
+            || b == b')'
+            || b == b'>'
+            || b == b'"'
+            || b == b'\''
+        {
             break;
         }
         i += 1;
