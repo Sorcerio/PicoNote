@@ -347,16 +347,22 @@ impl eframe::App for PicoNoteApp {
             .frame(panel_frame)
             .show(ctx, |ui| {
                 let font_size = self.config.font_size;
+                let word_wrap = self.config.word_wrap;
                 let highlighter = &mut self.highlighter;
                 let mut layouter = |ui: &egui::Ui, text: &str, wrap_width: f32| {
                     let mut job = highlighter.highlight(ui.style(), text, font_size);
-                    job.wrap.max_width = wrap_width;
+                    job.wrap.max_width = if word_wrap { wrap_width } else { f32::INFINITY };
                     ui.fonts(|f| f.layout_job(job))
                 };
 
-                egui::ScrollArea::both().show(ui, |ui| {
-                    let desired_width = if self.config.word_wrap {
-                        f32::INFINITY
+                let scroll = if word_wrap {
+                    egui::ScrollArea::vertical()
+                } else {
+                    egui::ScrollArea::both()
+                };
+                scroll.show(ui, |ui| {
+                    let desired_width = if word_wrap {
+                        ui.available_width()
                     } else {
                         f32::MAX
                     };
