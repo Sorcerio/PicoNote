@@ -62,6 +62,7 @@ struct Colors {
     table_pipe: Color32,
     footnote: Color32,
     emoji: Color32,
+    sub_super: Color32,
 }
 
 impl Colors {
@@ -84,6 +85,7 @@ impl Colors {
                 table_pipe: Color32::from_rgb(100, 160, 220),
                 footnote: Color32::from_rgb(150, 130, 200),
                 emoji: Color32::from_rgb(220, 180, 100),
+                sub_super: Color32::from_rgb(130, 200, 180),
             }
         } else {
             Self {
@@ -103,6 +105,7 @@ impl Colors {
                 table_pipe: Color32::from_rgb(0, 100, 180),
                 footnote: Color32::from_rgb(100, 70, 160),
                 emoji: Color32::from_rgb(180, 130, 30),
+                sub_super: Color32::from_rgb(0, 130, 100),
             }
         }
     }
@@ -164,6 +167,8 @@ fn md_style_to_format(md: &MdStyle, c: &Colors, base_size: f32) -> TextFormat {
         c.marker
     } else if md.emoji_shortcode {
         c.emoji
+    } else if md.subscript || md.superscript {
+        c.sub_super
     } else {
         c.text
     };

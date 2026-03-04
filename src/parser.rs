@@ -11,6 +11,7 @@ pub struct MdStyle {
     pub list_bullet: bool,
     pub link_text: bool,
     pub link_url: bool,
+    pub horizontal_rule: bool,
 
     // Extended markdown
     pub strikethrough: bool,
@@ -23,6 +24,8 @@ pub struct MdStyle {
     pub highlight: bool,
     pub heading_id: bool,
     pub emoji_shortcode: bool,
+    pub subscript: bool,
+    pub superscript: bool,
 
     // Meta
     pub syntax_marker: bool,
@@ -125,6 +128,19 @@ fn is_code_fence(line: &str) -> bool {
     trimmed.starts_with("```") || trimmed.starts_with("~~~")
 }
 
+fn is_horizontal_rule(line: &str) -> bool {
+    let trimmed = line.trim();
+    if trimmed.len() < 3 {
+        return false;
+    }
+    let first = trimmed.as_bytes()[0];
+    if !matches!(first, b'-' | b'*' | b'_') {
+        return false;
+    }
+    let count = trimmed.bytes().filter(|&b| b == first).count();
+    count >= 3 && trimmed.bytes().all(|b| b == first || b == b' ')
+}
+
 fn push(spans: &mut Vec<MdSpan>, text: &str, style: MdStyle) {
     if !text.is_empty() {
         spans.push(MdSpan {
@@ -144,6 +160,20 @@ fn parse_line(line: &str, spans: &mut Vec<MdSpan>) {
             line,
             MdStyle {
                 table_align: true,
+                syntax_marker: true,
+                ..Default::default()
+            },
+        );
+        return;
+    }
+
+    // Check for horizontal rule: ---, ***, ___
+    if is_horizontal_rule(content) {
+        push(
+            spans,
+            line,
+            MdStyle {
+                horizontal_rule: true,
                 syntax_marker: true,
                 ..Default::default()
             },
@@ -244,8 +274,8 @@ fn parse_block_prefix(line: &str) -> (&str, &str, MdStyle) {
         );
     }
 
-    // Task list: - [ ] or - [x] or - [X]
-    if line.starts_with("- [ ] ") {
+    // Task list: - [ ] or - [x] or - [X] or * [ ] or * [x] or * [X]
+    if line.starts_with("- [ ] ") || line.starts_with("* [ ] ") {
         return (
             &line[..6],
             &line[6..],
@@ -256,7 +286,11 @@ fn parse_block_prefix(line: &str) -> (&str, &str, MdStyle) {
             },
         );
     }
-    if line.starts_with("- [x] ") || line.starts_with("- [X] ") {
+    if line.starts_with("- [x] ")
+        || line.starts_with("- [X] ")
+        || line.starts_with("* [x] ")
+        || line.starts_with("* [X] ")
+    {
         return (
             &line[..6],
             &line[6..],
@@ -301,9 +335,27 @@ fn parse_block_prefix(line: &str) -> (&str, &str, MdStyle) {
         );
     }
 
-    // List item: - or * (with optional leading whitespace)
+    // Ordered list item: N. (with optional leading whitespace)
     let stripped = line.trim_start();
     let indent = line.len() - stripped.len();
+    if indent <= 12
+        && let Some(dot_pos) = stripped.find(". ")
+        && dot_pos > 0
+        && dot_pos <= 9
+        && stripped[..dot_pos].bytes().all(|b| b.is_ascii_digit())
+    {
+        let prefix_end = indent + dot_pos + 2;
+        return (
+            &line[..prefix_end],
+            &line[prefix_end..],
+            MdStyle {
+                list_bullet: true,
+                ..Default::default()
+            },
+        );
+    }
+
+    // Unordered list item: - or * (with optional leading whitespace)
     if (stripped.starts_with("- ") || stripped.starts_with("* ")) && indent <= 12 {
         let prefix_end = indent + 2;
         return (
@@ -350,7 +402,7 @@ fn extract_heading_id(body: &str) -> (&str, Option<&str>) {
 
 fn is_table_align_row(line: &str) -> bool {
     let trimmed = line.trim();
-    if !trimmed.contains('-') {
+    if !trimmed.contains('-') || !trimmed.contains('|') {
         return false;
     }
     for ch in trimmed.chars() {
@@ -440,10 +492,59 @@ fn parse_inline(body: &str, base_style: &MdStyle, spans: &mut Vec<MdSpan>) {
             continue;
         }
 
+        // Bold: __text__ (underscore variant, requires word boundaries)
+        if i + 1 < len
+            && bytes[i] == b'_'
+            && bytes[i + 1] == b'_'
+            && (i == 0 || !bytes[i - 1].is_ascii_alphanumeric())
+            && let Some(end) = find_closing(body, i + 2, "__")
+            && (end + 2 >= len || !bytes[end + 2].is_ascii_alphanumeric())
+        {
+            flush_plain(body, plain_start, i, base_style, spans);
+            let mut marker = base_style.clone();
+            marker.bold = true;
+            marker.syntax_marker = true;
+            push(spans, &body[i..i + 2], marker);
+            let mut bold = base_style.clone();
+            bold.bold = true;
+            push(spans, &body[i + 2..end], bold);
+            let mut marker2 = base_style.clone();
+            marker2.bold = true;
+            marker2.syntax_marker = true;
+            push(spans, &body[end..end + 2], marker2);
+            i = end + 2;
+            plain_start = i;
+            continue;
+        }
+
         // Italic: *text*
         if bytes[i] == b'*'
             && (i + 1 >= len || bytes[i + 1] != b'*')
             && let Some(end) = find_closing_single_star(body, i + 1)
+        {
+            flush_plain(body, plain_start, i, base_style, spans);
+            let mut marker = base_style.clone();
+            marker.italic = true;
+            marker.syntax_marker = true;
+            push(spans, &body[i..i + 1], marker);
+            let mut ital = base_style.clone();
+            ital.italic = true;
+            push(spans, &body[i + 1..end], ital);
+            let mut marker2 = base_style.clone();
+            marker2.italic = true;
+            marker2.syntax_marker = true;
+            push(spans, &body[end..end + 1], marker2);
+            i = end + 1;
+            plain_start = i;
+            continue;
+        }
+
+        // Italic: _text_ (underscore variant, requires word boundaries)
+        if bytes[i] == b'_'
+            && (i + 1 >= len || bytes[i + 1] != b'_')
+            && (i == 0 || !bytes[i - 1].is_ascii_alphanumeric())
+            && let Some(end) = find_closing_single_underscore(body, i + 1)
+            && (end + 1 >= len || !bytes[end + 1].is_ascii_alphanumeric())
         {
             flush_plain(body, plain_start, i, base_style, spans);
             let mut marker = base_style.clone();
@@ -485,6 +586,28 @@ fn parse_inline(body: &str, base_style: &MdStyle, spans: &mut Vec<MdSpan>) {
             continue;
         }
 
+        // Subscript: ~text~ (single tilde, no spaces in content)
+        if bytes[i] == b'~'
+            && (i + 1 >= len || bytes[i + 1] != b'~')
+            && let Some(end) = find_closing_no_space(body, i + 1, b'~')
+        {
+            flush_plain(body, plain_start, i, base_style, spans);
+            let mut marker = base_style.clone();
+            marker.subscript = true;
+            marker.syntax_marker = true;
+            push(spans, &body[i..i + 1], marker);
+            let mut sub = base_style.clone();
+            sub.subscript = true;
+            push(spans, &body[i + 1..end], sub);
+            let mut marker2 = base_style.clone();
+            marker2.subscript = true;
+            marker2.syntax_marker = true;
+            push(spans, &body[end..end + 1], marker2);
+            i = end + 1;
+            plain_start = i;
+            continue;
+        }
+
         // Highlight: ==text==
         if i + 1 < len
             && bytes[i] == b'='
@@ -504,6 +627,27 @@ fn parse_inline(body: &str, base_style: &MdStyle, spans: &mut Vec<MdSpan>) {
             marker2.syntax_marker = true;
             push(spans, &body[end..end + 2], marker2);
             i = end + 2;
+            plain_start = i;
+            continue;
+        }
+
+        // Superscript: ^text^ (no spaces in content)
+        if bytes[i] == b'^'
+            && let Some(end) = find_closing_no_space(body, i + 1, b'^')
+        {
+            flush_plain(body, plain_start, i, base_style, spans);
+            let mut marker = base_style.clone();
+            marker.superscript = true;
+            marker.syntax_marker = true;
+            push(spans, &body[i..i + 1], marker);
+            let mut sup = base_style.clone();
+            sup.superscript = true;
+            push(spans, &body[i + 1..end], sup);
+            let mut marker2 = base_style.clone();
+            marker2.superscript = true;
+            marker2.syntax_marker = true;
+            push(spans, &body[end..end + 1], marker2);
+            i = end + 1;
             plain_start = i;
             continue;
         }
@@ -531,6 +675,66 @@ fn parse_inline(body: &str, base_style: &MdStyle, spans: &mut Vec<MdSpan>) {
                 plain_start = i;
                 continue;
             }
+        }
+
+        // Image link: ![alt](url)
+        if bytes[i] == b'!'
+            && i + 1 < len
+            && bytes[i + 1] == b'['
+            && let Some((text_end, url_end)) = find_link(body, i + 1)
+        {
+            flush_plain(body, plain_start, i, base_style, spans);
+            // ![
+            push(
+                spans,
+                &body[i..i + 2],
+                MdStyle {
+                    link_text: true,
+                    syntax_marker: true,
+                    ..Default::default()
+                },
+            );
+            // alt text
+            push(
+                spans,
+                &body[i + 2..text_end],
+                MdStyle {
+                    link_text: true,
+                    ..Default::default()
+                },
+            );
+            // ](
+            push(
+                spans,
+                &body[text_end..text_end + 2],
+                MdStyle {
+                    link_url: true,
+                    syntax_marker: true,
+                    ..Default::default()
+                },
+            );
+            // url
+            push(
+                spans,
+                &body[text_end + 2..url_end],
+                MdStyle {
+                    link_url: true,
+                    ..Default::default()
+                },
+            );
+            // )
+            push(
+                spans,
+                &body[url_end..url_end + 1],
+                MdStyle {
+                    link_url: true,
+                    syntax_marker: true,
+                    ..Default::default()
+                },
+            );
+            i = url_end + 1;
+            plain_start = i;
+            continue;
         }
 
         // Link: [text](url)
@@ -667,6 +871,42 @@ fn find_closing_single_star(text: &str, from: usize) -> Option<usize> {
                 continue;
             }
             return Some(i);
+        }
+        i += 1;
+    }
+    None
+}
+
+/// Find closing single `_` that is NOT `__`.
+fn find_closing_single_underscore(text: &str, from: usize) -> Option<usize> {
+    let bytes = text.as_bytes();
+    let mut i = from;
+    while i < bytes.len() {
+        if bytes[i] == b'_' {
+            if i + 1 < bytes.len() && bytes[i + 1] == b'_' {
+                i += 2;
+                continue;
+            }
+            return Some(i);
+        }
+        i += 1;
+    }
+    None
+}
+
+/// Find closing single-char delimiter with no spaces allowed in the content.
+fn find_closing_no_space(text: &str, from: usize, delim: u8) -> Option<usize> {
+    let bytes = text.as_bytes();
+    let mut i = from;
+    while i < bytes.len() {
+        if bytes[i] == delim {
+            if i > from {
+                return Some(i);
+            }
+            return None;
+        }
+        if bytes[i] == b' ' || bytes[i] == b'\n' {
+            return None;
         }
         i += 1;
     }
@@ -1047,5 +1287,150 @@ mod tests {
         assert!(find_span(&spans, |s| s.bold && !s.syntax_marker).is_some());
         assert!(find_span(&spans, |s| s.italic && !s.syntax_marker).is_some());
         assert!(find_span(&spans, |s| s.code && !s.syntax_marker).is_some());
+    }
+
+    // === UNDERSCORE BOLD / ITALIC ===
+
+    #[test]
+    fn test_underscore_bold() {
+        let input = "some __bold__ text\n";
+        let spans = parse_markdown(input);
+        assert_eq!(concat_spans(&spans), input);
+        let bold = find_span(&spans, |s| s.bold && !s.syntax_marker);
+        assert!(bold.is_some());
+        assert_eq!(bold.unwrap().text, "bold");
+    }
+
+    #[test]
+    fn test_underscore_italic() {
+        let input = "some _italic_ text\n";
+        let spans = parse_markdown(input);
+        assert_eq!(concat_spans(&spans), input);
+        let italic = find_span(&spans, |s| s.italic && !s.syntax_marker);
+        assert!(italic.is_some());
+        assert_eq!(italic.unwrap().text, "italic");
+    }
+
+    #[test]
+    fn test_underscore_in_word_not_italic() {
+        // Underscores inside words should NOT be treated as italic
+        let input = "my_variable_name\n";
+        let spans = parse_markdown(input);
+        assert_eq!(concat_spans(&spans), input);
+        assert!(find_span(&spans, |s| s.italic).is_none());
+    }
+
+    // === HORIZONTAL RULE ===
+
+    #[test]
+    fn test_horizontal_rule_dashes() {
+        let input = "---\n";
+        let spans = parse_markdown(input);
+        assert_eq!(concat_spans(&spans), input);
+        assert!(spans[0].style.horizontal_rule);
+        assert!(spans[0].style.syntax_marker);
+    }
+
+    #[test]
+    fn test_horizontal_rule_stars() {
+        let input = "***\n";
+        let spans = parse_markdown(input);
+        assert_eq!(concat_spans(&spans), input);
+        assert!(spans[0].style.horizontal_rule);
+    }
+
+    #[test]
+    fn test_horizontal_rule_underscores() {
+        let input = "___\n";
+        let spans = parse_markdown(input);
+        assert_eq!(concat_spans(&spans), input);
+        assert!(spans[0].style.horizontal_rule);
+    }
+
+    // === ORDERED LISTS ===
+
+    #[test]
+    fn test_ordered_list() {
+        let input = "1. First item\n";
+        let spans = parse_markdown(input);
+        assert_eq!(concat_spans(&spans), input);
+        assert!(spans[0].style.list_bullet);
+        assert!(spans[0].style.syntax_marker);
+        assert_eq!(spans[0].text, "1. ");
+    }
+
+    #[test]
+    fn test_ordered_list_multidigit() {
+        let input = "10. Tenth item\n";
+        let spans = parse_markdown(input);
+        assert_eq!(concat_spans(&spans), input);
+        assert!(spans[0].style.list_bullet);
+        assert_eq!(spans[0].text, "10. ");
+    }
+
+    // === TASK LIST WITH ASTERISK ===
+
+    #[test]
+    fn test_task_asterisk_unchecked() {
+        let input = "* [ ] todo\n";
+        let spans = parse_markdown(input);
+        assert_eq!(concat_spans(&spans), input);
+        assert!(spans[0].style.task_checkbox);
+        assert!(!spans[0].style.task_checked);
+    }
+
+    #[test]
+    fn test_task_asterisk_checked() {
+        let input = "* [x] done\n";
+        let spans = parse_markdown(input);
+        assert_eq!(concat_spans(&spans), input);
+        assert!(spans[0].style.task_checkbox);
+        assert!(spans[0].style.task_checked);
+    }
+
+    // === SUBSCRIPT / SUPERSCRIPT ===
+
+    #[test]
+    fn test_subscript() {
+        let input = "H~2~O\n";
+        let spans = parse_markdown(input);
+        assert_eq!(concat_spans(&spans), input);
+        let sub = find_span(&spans, |s| s.subscript && !s.syntax_marker);
+        assert!(sub.is_some());
+        assert_eq!(sub.unwrap().text, "2");
+    }
+
+    #[test]
+    fn test_superscript() {
+        let input = "X^2^\n";
+        let spans = parse_markdown(input);
+        assert_eq!(concat_spans(&spans), input);
+        let sup = find_span(&spans, |s| s.superscript && !s.syntax_marker);
+        assert!(sup.is_some());
+        assert_eq!(sup.unwrap().text, "2");
+    }
+
+    // === IMAGE LINKS ===
+
+    #[test]
+    fn test_image_link() {
+        let input = "![alt text](https://example.com/img.png)\n";
+        let spans = parse_markdown(input);
+        assert_eq!(concat_spans(&spans), input);
+        let link_text = find_span(&spans, |s| s.link_text && !s.syntax_marker);
+        assert!(link_text.is_some());
+        assert_eq!(link_text.unwrap().text, "alt text");
+        let link_url = find_span(&spans, |s| s.link_url && !s.syntax_marker);
+        assert!(link_url.is_some());
+        assert_eq!(link_url.unwrap().text, "https://example.com/img.png");
+    }
+
+    // === UPDATED CONCATENATION INVARIANT ===
+
+    #[test]
+    fn test_concatenation_invariant_extended() {
+        let input = "# Hello\n\n---\n\nSome **bold** __text__ and *italic* _words_.\n\n1. First\n2. Second\n\n* [ ] todo\n* [x] done\n\nH~2~O and X^2^\n\n![img](https://example.com/img.png)\n";
+        let spans = parse_markdown(input);
+        assert_eq!(concat_spans(&spans), input);
     }
 }
