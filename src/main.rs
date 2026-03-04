@@ -1,5 +1,6 @@
 mod app;
 mod file_ops;
+mod parser;
 
 use eframe::egui;
 
