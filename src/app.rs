@@ -278,34 +278,41 @@ impl eframe::App for PicoNoteApp {
         });
 
         // --- Editor ---
-        egui::CentralPanel::default().show(ctx, |ui| {
-            let font_size = self.config.font_size;
-            let highlighter = &mut self.highlighter;
-            let mut layouter = |ui: &egui::Ui, text: &str, wrap_width: f32| {
-                let mut job = highlighter.highlight(ui.style(), text, font_size);
-                job.wrap.max_width = wrap_width;
-                ui.fonts(|f| f.layout_job(job))
-            };
-
-            egui::ScrollArea::both().show(ui, |ui| {
-                let desired_width = if self.config.word_wrap {
-                    f32::INFINITY
-                } else {
-                    f32::MAX
+        let panel_frame = egui::Frame::new()
+            .inner_margin(0.0)
+            .fill(ctx.style().visuals.panel_fill);
+        egui::CentralPanel::default()
+            .frame(panel_frame)
+            .show(ctx, |ui| {
+                let font_size = self.config.font_size;
+                let highlighter = &mut self.highlighter;
+                let mut layouter = |ui: &egui::Ui, text: &str, wrap_width: f32| {
+                    let mut job = highlighter.highlight(ui.style(), text, font_size);
+                    job.wrap.max_width = wrap_width;
+                    ui.fonts(|f| f.layout_job(job))
                 };
 
-                let text_edit = egui::TextEdit::multiline(&mut self.content)
-                    .desired_width(desired_width)
-                    .desired_rows(40)
-                    .lock_focus(true)
-                    .layouter(&mut layouter);
+                egui::ScrollArea::both().show(ui, |ui| {
+                    let desired_width = if self.config.word_wrap {
+                        f32::INFINITY
+                    } else {
+                        f32::MAX
+                    };
 
-                let response = ui.add(text_edit);
-                if response.changed() {
-                    self.file_state.dirty = true;
-                }
+                    let text_edit = egui::TextEdit::multiline(&mut self.content)
+                        .desired_width(desired_width)
+                        .desired_rows(40)
+                        .lock_focus(true)
+                        .frame(false)
+                        .margin(egui::Margin::symmetric(6, 4))
+                        .layouter(&mut layouter);
+
+                    let response = ui.add(text_edit);
+                    if response.changed() {
+                        self.file_state.dirty = true;
+                    }
+                });
             });
-        });
     }
 }
 
