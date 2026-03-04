@@ -13,6 +13,8 @@ enum PendingAction {
     Quit,
 }
 
+const THIRD_PARTY_LICENSES: &str = include_str!("THIRD-PARTY-LICENSES.txt");
+
 pub struct PicoNoteApp {
     content: String,
     file_state: FileState,
@@ -20,6 +22,7 @@ pub struct PicoNoteApp {
     config: Config,
     pending_action: Option<PendingAction>,
     system_fonts: Vec<String>,
+    show_licenses: bool,
 }
 
 impl PicoNoteApp {
@@ -36,6 +39,7 @@ impl PicoNoteApp {
             config,
             pending_action: None,
             system_fonts: enumerate_system_fonts(),
+            show_licenses: false,
         }
     }
 
@@ -180,6 +184,23 @@ impl eframe::App for PicoNoteApp {
                 });
         }
 
+        // --- Third-party licenses window ---
+        if self.show_licenses {
+            let mut open = true;
+            egui::Window::new("Third-Party Licenses")
+                .open(&mut open)
+                .resizable(true)
+                .default_size([600.0, 400.0])
+                .show(ctx, |ui| {
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        ui.monospace(THIRD_PARTY_LICENSES);
+                    });
+                });
+            if !open {
+                self.show_licenses = false;
+            }
+        }
+
         // --- Menu bar ---
         egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
@@ -290,6 +311,13 @@ impl eframe::App for PicoNoteApp {
                         .changed()
                     {
                         config::save_config(&self.config);
+                    }
+                });
+
+                ui.menu_button("Help", |ui| {
+                    if ui.button("Third-Party Licenses").clicked() {
+                        self.show_licenses = true;
+                        ui.close_menu();
                     }
                 });
             });
