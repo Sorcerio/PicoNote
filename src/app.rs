@@ -1,22 +1,26 @@
 use eframe::egui;
 
+use crate::config::{self, Config, ThemeChoice};
 use crate::file_ops::{self, FileState};
 use crate::highlighter::MemoizedMarkdownHighlighter;
+use crate::theme;
 
 pub struct PicoNoteApp {
     content: String,
     file_state: FileState,
     highlighter: MemoizedMarkdownHighlighter,
-    font_size: f32,
+    config: Config,
 }
 
 impl PicoNoteApp {
-    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        let config = config::load_config();
+        theme::apply_theme(&cc.egui_ctx, &config.theme);
         Self {
             content: String::new(),
             file_state: FileState::new(),
             highlighter: MemoizedMarkdownHighlighter::default(),
-            font_size: 14.0,
+            config,
         }
     }
 
@@ -96,11 +100,43 @@ impl eframe::App for PicoNoteApp {
                         ui.close_menu();
                     }
                 });
+
+                ui.menu_button("Preferences", |ui| {
+                    ui.label("Theme");
+                    let mut changed = false;
+                    changed |= ui
+                        .radio_value(&mut self.config.theme, ThemeChoice::Dark, "Dark")
+                        .changed();
+                    changed |= ui
+                        .radio_value(&mut self.config.theme, ThemeChoice::Light, "Light")
+                        .changed();
+                    if changed {
+                        theme::apply_theme(ctx, &self.config.theme);
+                        config::save_config(&self.config);
+                    }
+
+                    ui.separator();
+                    ui.label("Font Size");
+                    if ui
+                        .add(egui::Slider::new(&mut self.config.font_size, 10.0..=28.0).suffix(" px"))
+                        .changed()
+                    {
+                        config::save_config(&self.config);
+                    }
+
+                    ui.separator();
+                    if ui
+                        .checkbox(&mut self.config.word_wrap, "Word Wrap")
+                        .changed()
+                    {
+                        config::save_config(&self.config);
+                    }
+                });
             });
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            let font_size = self.font_size;
+            let font_size = self.config.font_size;
             let highlighter = &mut self.highlighter;
             let mut layouter = |ui: &egui::Ui, text: &str, wrap_width: f32| {
                 let mut job = highlighter.highlight(ui.style(), text, font_size);
@@ -108,14 +144,20 @@ impl eframe::App for PicoNoteApp {
                 ui.fonts(|f| f.layout_job(job))
             };
 
-            egui::ScrollArea::vertical().show(ui, |ui| {
-                let response = ui.add(
-                    egui::TextEdit::multiline(&mut self.content)
-                        .desired_width(f32::INFINITY)
-                        .desired_rows(40)
-                        .lock_focus(true)
-                        .layouter(&mut layouter),
-                );
+            egui::ScrollArea::both().show(ui, |ui| {
+                let desired_width = if self.config.word_wrap {
+                    f32::INFINITY
+                } else {
+                    f32::MAX
+                };
+
+                let text_edit = egui::TextEdit::multiline(&mut self.content)
+                    .desired_width(desired_width)
+                    .desired_rows(40)
+                    .lock_focus(true)
+                    .layouter(&mut layouter);
+
+                let response = ui.add(text_edit);
                 if response.changed() {
                     self.file_state.dirty = true;
                 }

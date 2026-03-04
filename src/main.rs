@@ -1,7 +1,9 @@
 mod app;
+mod config;
 mod file_ops;
 mod highlighter;
 mod parser;
+mod theme;
 
 use eframe::egui;
 
