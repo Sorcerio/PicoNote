@@ -7,6 +7,7 @@ A super lightweight markdown notepad built in Rust to replace the now bloated "N
   * [Releases](#releases)
   * [Building](#building)
     * [Linux dependencies](#linux-dependencies)
+    * [Production build](#production-build)
   * [Architecture](#architecture)
   * [Dependencies](#dependencies)
 
@@ -43,17 +44,14 @@ TODO: Information on releases.
 
 ## Building
 
-Requires [Rust](https://rustup.rs/) 1.85+ (edition 2024).
+Requires [Rust](https://rustup.rs/) 1.85+ (edition 2024) and Python 3.
 
 ```sh
 # Debug build
 cargo build
 
-# Release build (optimized for size)
-cargo build --release
-
-# Run
-cargo run --release
+# Run (debug)
+cargo run
 ```
 
 ### Linux dependencies
@@ -62,6 +60,19 @@ cargo run --release
 sudo apt-get install -y libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
     libxkbcommon-dev libssl-dev libgtk-3-dev
 ```
+
+### Production build
+
+Third-party license texts are embedded in the binary. Before a release build,
+regenerate them so they stay in sync with your current dependencies:
+
+```sh
+python3 scripts/generate-licenses.py
+cargo build --release
+```
+
+The release binary is at `target/release/piconote`. It is fully self-contained
+with all license attributions viewable under **Help > Third-Party Licenses**.
 
 ## Architecture
 
@@ -84,3 +95,4 @@ src/
 | rfd | Native file dialogs |
 | serde | Serialization for config |
 | confy | Config file management |
+| font-kit | System font discovery |
