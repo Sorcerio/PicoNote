@@ -19,18 +19,23 @@ pub struct PicoNoteApp {
     highlighter: MemoizedMarkdownHighlighter,
     config: Config,
     pending_action: Option<PendingAction>,
+    system_fonts: Vec<String>,
 }
 
 impl PicoNoteApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         let config = config::load_config();
         theme::apply_theme(&cc.egui_ctx, &config.theme);
+        if let Some(ref family) = config.font_family {
+            apply_custom_font(&cc.egui_ctx, family);
+        }
         Self {
             content: String::new(),
             file_state: FileState::new(),
             highlighter: MemoizedMarkdownHighlighter::default(),
             config,
             pending_action: None,
+            system_fonts: enumerate_system_fonts(),
         }
     }
 
@@ -239,6 +244,35 @@ impl eframe::App for PicoNoteApp {
                     }
 
                     ui.separator();
+                    ui.label("Font");
+                    let prev_font = self.config.font_family.clone();
+                    let selected_text = self
+                        .config
+                        .font_family
+                        .as_deref()
+                        .unwrap_or("Default")
+                        .to_owned();
+                    let font_family = &mut self.config.font_family;
+                    let system_fonts = &self.system_fonts;
+                    egui::ComboBox::from_id_salt("font_picker")
+                        .selected_text(selected_text)
+                        .width(200.0)
+                        .height(300.0)
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(font_family, None, "Default");
+                            for name in system_fonts {
+                                ui.selectable_value(font_family, Some(name.clone()), name);
+                            }
+                        });
+                    if self.config.font_family != prev_font {
+                        match &self.config.font_family {
+                            Some(family) => apply_custom_font(ctx, family),
+                            None => reset_default_font(ctx),
+                        }
+                        config::save_config(&self.config);
+                    }
+
+                    ui.separator();
                     ui.label("Font Size");
                     if ui
                         .add(
@@ -330,4 +364,51 @@ fn shortcut_shift_label(key: &str) -> String {
     } else {
         format!("Ctrl+Shift+{key}")
     }
+}
+
+fn enumerate_system_fonts() -> Vec<String> {
+    use font_kit::source::SystemSource;
+    let mut families = SystemSource::new().all_families().unwrap_or_default();
+    families.sort_unstable_by_key(|a| a.to_lowercase());
+    families.dedup();
+    families
+}
+
+fn apply_custom_font(ctx: &egui::Context, family: &str) {
+    use font_kit::family_name::FamilyName;
+    use font_kit::handle::Handle;
+    use font_kit::properties::Properties;
+    use font_kit::source::SystemSource;
+
+    let source = SystemSource::new();
+    let handle = match source
+        .select_best_match(&[FamilyName::Title(family.to_string())], &Properties::new())
+    {
+        Ok(h) => h,
+        Err(_) => return,
+    };
+
+    let (bytes, index) = match handle {
+        Handle::Path { path, font_index } => match std::fs::read(&path) {
+            Ok(b) => (b, font_index),
+            Err(_) => return,
+        },
+        Handle::Memory { bytes, font_index } => ((*bytes).clone(), font_index),
+    };
+
+    let mut font_data = egui::FontData::from_owned(bytes);
+    font_data.index = index;
+
+    let mut fonts = egui::FontDefinitions::default();
+    fonts.font_data.insert(family.to_owned(), font_data.into());
+    fonts
+        .families
+        .entry(egui::FontFamily::Proportional)
+        .or_default()
+        .insert(0, family.to_owned());
+    ctx.set_fonts(fonts);
+}
+
+fn reset_default_font(ctx: &egui::Context) {
+    ctx.set_fonts(egui::FontDefinitions::default());
 }

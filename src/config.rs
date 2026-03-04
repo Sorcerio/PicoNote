@@ -11,6 +11,7 @@ pub struct Config {
     pub theme: ThemeChoice,
     pub font_size: f32,
     pub word_wrap: bool,
+    pub font_family: Option<String>,
 }
 
 impl Default for Config {
@@ -19,6 +20,7 @@ impl Default for Config {
             theme: ThemeChoice::Dark,
             font_size: 14.0,
             word_wrap: true,
+            font_family: None,
         }
     }
 }
