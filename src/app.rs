@@ -1,10 +1,13 @@
 use eframe::egui;
 
 use crate::file_ops::{self, FileState};
+use crate::highlighter::MemoizedMarkdownHighlighter;
 
 pub struct PicoNoteApp {
     content: String,
     file_state: FileState,
+    highlighter: MemoizedMarkdownHighlighter,
+    font_size: f32,
 }
 
 impl PicoNoteApp {
@@ -12,6 +15,8 @@ impl PicoNoteApp {
         Self {
             content: String::new(),
             file_state: FileState::new(),
+            highlighter: MemoizedMarkdownHighlighter::default(),
+            font_size: 14.0,
         }
     }
 
@@ -95,13 +100,21 @@ impl eframe::App for PicoNoteApp {
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
+            let font_size = self.font_size;
+            let highlighter = &mut self.highlighter;
+            let mut layouter = |ui: &egui::Ui, text: &str, wrap_width: f32| {
+                let mut job = highlighter.highlight(ui.style(), text, font_size);
+                job.wrap.max_width = wrap_width;
+                ui.fonts(|f| f.layout_job(job))
+            };
+
             egui::ScrollArea::vertical().show(ui, |ui| {
                 let response = ui.add(
                     egui::TextEdit::multiline(&mut self.content)
                         .desired_width(f32::INFINITY)
                         .desired_rows(40)
                         .lock_focus(true)
-                        .font(egui::TextStyle::Monospace),
+                        .layouter(&mut layouter),
                 );
                 if response.changed() {
                     self.file_state.dirty = true;
