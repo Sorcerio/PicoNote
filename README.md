@@ -1,6 +1,8 @@
 # PicoNote
 
-A super lightweight markdown notepad built in Rust to replace the now bloated "Notepad" applications shipped with all modern Operating Systems.
+![PicoNote title banner](./repo/banner.png) 
+
+> A super lightweight markdown notepad built in Rust to replace the now bloated "Notepad" applications shipped with all modern Operating Systems.
 
 * [PicoNote](#piconote)
   * [Features](#features)
@@ -17,9 +19,12 @@ A super lightweight markdown notepad built in Rust to replace the now bloated "N
 
 ---
 
+
 ## Features
 
-TODO: Header Image
+| | |
+|:---:|:---:|
+|![Light mode example](./repo/example01.png)|![Dark mode example](./repo/example02.png)|
 
 * **Markdown syntax highlighting** (basic + extended)
   * Headings, bold, italic, inline code, fenced code blocks
@@ -45,7 +50,7 @@ TODO: Header Image
 
 ## Releases
 
-TODO: Information on releases.
+Compiled releases are available in the [Releases section on GitHub](https://github.com/Sorcerio/PicoNote/releases).
 
 ## Building
 
