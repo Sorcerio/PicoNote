@@ -4,6 +4,11 @@ on:
   push:
     tags:
       - '[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release tag (e.g. 1.0.0)'
+        required: true
 
 jobs:
   build-macos:
@@ -25,12 +30,12 @@ jobs:
         run: cargo bundle --release
 
       - name: Zip
-        run: zip -r PicoNote-${{ github.ref_name }}-macos.zip target/release/bundle/osx/PicoNote.app
+        run: zip -r PicoNote-${{ inputs.tag_name || github.ref_name }}-macos.zip target/release/bundle/osx/PicoNote.app
 
       - name: Upload to Release
         uses: softprops/action-gh-release@v2
         with:
-          files: PicoNote-${{ github.ref_name }}-macos.zip
+          files: PicoNote-${{ inputs.tag_name || github.ref_name }}-macos.zip
 
   build-linux:
     runs-on: ubuntu-latest
@@ -57,12 +62,12 @@ jobs:
         run: cargo bundle --release
 
       - name: Zip
-        run: zip PicoNote-${{ github.ref_name }}-linux.zip target/release/bundle/deb/piconote_*.deb
+        run: zip PicoNote-${{ inputs.tag_name || github.ref_name }}-linux.zip target/release/bundle/deb/piconote_*.deb
 
       - name: Upload to Release
         uses: softprops/action-gh-release@v2
         with:
-          files: PicoNote-${{ github.ref_name }}-linux.zip
+          files: PicoNote-${{ inputs.tag_name || github.ref_name }}-linux.zip
 
   build-windows:
     runs-on: windows-latest
@@ -80,9 +85,9 @@ jobs:
         run: cargo build --release
 
       - name: Zip
-        run: Compress-Archive -Path target/release/piconote.exe -DestinationPath PicoNote-${{ github.ref_name }}-windows.zip
+        run: Compress-Archive -Path target/release/piconote.exe -DestinationPath PicoNote-${{ inputs.tag_name || github.ref_name }}-windows.zip
 
       - name: Upload to Release
         uses: softprops/action-gh-release@v2
         with:
-          files: PicoNote-${{ github.ref_name }}-windows.zip
+          files: PicoNote-${{ inputs.tag_name || github.ref_name }}-windows.zip
