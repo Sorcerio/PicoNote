@@ -74,6 +74,25 @@ cargo build --release
 The release binary is at `target/release/piconote`. It is fully self-contained
 with all license attributions viewable under **Help > Third-Party Licenses**.
 
+### macOS app bundle
+
+Produces a `.app` package with the correct icon, bundle identifier, and
+`Info.plist` for Finder/Dock integration:
+
+```sh
+cargo install cargo-bundle
+python3 scripts/generate-licenses.py
+cargo bundle --release
+```
+
+The bundle is at `target/release/bundle/osx/PicoNote.app`.
+
+### Windows icon
+
+The `.ico` file is embedded via a `build.rs` resource script (Windows only).
+A standard `cargo build --release` on Windows will produce a binary with the
+correct taskbar and Explorer icon.
+
 ## Architecture
 
 ```
@@ -96,3 +115,4 @@ src/
 | serde | Serialization for config |
 | confy | Config file management |
 | font-kit | System font discovery |
+| image | PNG decoding for runtime window icon |

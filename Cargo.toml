@@ -16,6 +16,15 @@ serde = { version = "1", features = ["derive"] }
 confy = "0.6"
 font-kit = "0.14"
 
+[package.metadata.bundle]
+name = "PicoNote"
+identifier = "com.piconote.app"
+icon = ["icons/PicoNote.icns"]
+version = "0.1.0"
+copyright = "Copyright (c) 2026 PicoNote"
+category = "public.app-category.productivity"
+short_description = "A super lightweight markdown notepad"
+
 [profile.release]
 opt-level = "s"
 lto = true
