@@ -1,0 +1,88 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Generate licenses
+        run: python3 scripts/generate-licenses.py
+
+      - name: Install cargo-bundle
+        run: cargo install cargo-bundle
+
+      - name: Bundle
+        run: cargo bundle --release
+
+      - name: Zip
+        run: zip -r PicoNote-${{ github.ref_name }}-macos.zip target/release/bundle/osx/PicoNote.app
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: PicoNote-${{ github.ref_name }}-macos.zip
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxcb-render0-dev libxcb-shape0-dev \
+            libxcb-xfixes0-dev libxkbcommon-dev libssl-dev libgtk-3-dev
+
+      - name: Generate licenses
+        run: python3 scripts/generate-licenses.py
+
+      - name: Install cargo-bundle
+        run: cargo install cargo-bundle
+
+      - name: Bundle
+        run: cargo bundle --release
+
+      - name: Zip
+        run: zip PicoNote-${{ github.ref_name }}-linux.zip target/release/bundle/deb/piconote_*.deb
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: PicoNote-${{ github.ref_name }}-linux.zip
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Generate licenses
+        run: python3 scripts/generate-licenses.py
+
+      - name: Build
+        run: cargo build --release
+
+      - name: Zip
+        run: Compress-Archive -Path target/release/piconote.exe -DestinationPath PicoNote-${{ github.ref_name }}-windows.zip
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: PicoNote-${{ github.ref_name }}-windows.zip
