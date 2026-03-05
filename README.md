@@ -6,8 +6,12 @@ A super lightweight markdown notepad built in Rust to replace the now bloated "N
   * [Features](#features)
   * [Releases](#releases)
   * [Building](#building)
-    * [Linux dependencies](#linux-dependencies)
-    * [Production build](#production-build)
+    * [For Development](#for-development)
+      * [Linux dependencies](#linux-dependencies)
+    * [For Production](#for-production)
+      * [All platforms](#all-platforms)
+      * [macOS app bundle](#macos-app-bundle)
+      * [Windows](#windows)
   * [Architecture](#architecture)
   * [Dependencies](#dependencies)
 
@@ -46,25 +50,28 @@ TODO: Information on releases.
 
 Requires [Rust](https://rustup.rs/) 1.85+ (edition 2024) and Python 3.
 
-```sh
-# Debug build
-cargo build
+### For Development
 
-# Run (debug)
+```sh
+cargo build
 cargo run
 ```
 
-### Linux dependencies
+#### Linux dependencies
+
+Linux requires the following system packages before building:
 
 ```sh
 sudo apt-get install -y libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
     libxkbcommon-dev libssl-dev libgtk-3-dev
 ```
 
-### Production build
+### For Production
 
-Third-party license texts are embedded in the binary. Before a release build,
-regenerate them so they stay in sync with your current dependencies:
+#### All platforms
+
+Third-party license texts are embedded in the binary. Regenerate them before
+every release build to keep them in sync with current dependencies:
 
 ```sh
 python3 scripts/generate-licenses.py
@@ -74,7 +81,7 @@ cargo build --release
 The release binary is at `target/release/piconote`. It is fully self-contained
 with all license attributions viewable under **Help > Third-Party Licenses**.
 
-### macOS app bundle
+#### macOS app bundle
 
 Produces a `.app` package with the correct icon, bundle identifier, and
 `Info.plist` for Finder/Dock integration:
@@ -87,11 +94,11 @@ cargo bundle --release
 
 The bundle is at `target/release/bundle/osx/PicoNote.app`.
 
-### Windows icon
+#### Windows
 
-The `.ico` file is embedded via a `build.rs` resource script (Windows only).
-A standard `cargo build --release` on Windows will produce a binary with the
-correct taskbar and Explorer icon.
+The `.ico` file is embedded at link time via `build.rs` and `winres` (Windows
+only). A standard `cargo build --release` on Windows produces a binary with
+the correct taskbar and Explorer icon — no extra steps required.
 
 ## Architecture
 
