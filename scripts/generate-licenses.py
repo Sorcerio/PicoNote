@@ -56,7 +56,7 @@ def main():
         if license_files:
             for lf in sorted(license_files):
                 try:
-                    text = open(lf).read().strip()
+                    text = open(lf, encoding="utf-8").read().strip()
                     h = hashlib.sha256(text.encode()).hexdigest()[:16]
                     if h not in license_groups:
                         license_groups[h] = (text, os.path.basename(lf), [])
@@ -112,7 +112,7 @@ def main():
             lines.append(line)
 
     output_path = os.path.normpath(OUTPUT)
-    with open(output_path, "w") as f:
+    with open(output_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
 
     print(
