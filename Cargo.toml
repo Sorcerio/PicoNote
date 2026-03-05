@@ -25,6 +25,9 @@ copyright = "Copyright (c) 2026 PicoNote"
 category = "public.app-category.productivity"
 short_description = "A super lightweight markdown notepad"
 
+[target.'cfg(windows)'.build-dependencies]
+winres = "0.1"
+
 [profile.release]
 opt-level = "s"
 lto = true
