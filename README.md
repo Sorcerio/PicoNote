@@ -11,6 +11,7 @@ A super lightweight markdown notepad built in Rust to replace the now bloated "N
     * [For Production](#for-production)
       * [All platforms](#all-platforms)
       * [macOS app bundle](#macos-app-bundle)
+      * [Linux .deb package](#linux-deb-package)
       * [Windows](#windows)
   * [Architecture](#architecture)
   * [Dependencies](#dependencies)
@@ -93,6 +94,24 @@ cargo bundle --release
 ```
 
 The bundle is at `target/release/bundle/osx/PicoNote.app`.
+
+#### Linux .deb package
+
+Produces a `.deb` package with icons and a `.desktop` file for launcher
+integration. Requires `cargo-bundle`:
+
+```sh
+cargo install cargo-bundle
+python3 scripts/generate-licenses.py
+cargo bundle --release
+```
+
+The package is at `target/release/bundle/deb/piconote_<version>_amd64.deb`.
+Install it with:
+
+```sh
+sudo dpkg -i target/release/bundle/deb/piconote_*.deb
+```
 
 #### Windows
 

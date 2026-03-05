@@ -19,11 +19,22 @@ font-kit = "0.14"
 [package.metadata.bundle]
 name = "PicoNote"
 identifier = "com.piconote.app"
-icon = ["icons/PicoNote.icns"]
+icon = [
+    "icons/PicoNote.icns",
+    "icons/icon_512.png",
+    "icons/icon_256.png",
+    "icons/icon_128.png",
+    "icons/icon_64.png",
+    "icons/icon_48.png",
+    "icons/icon_32.png",
+    "icons/icon_16.png",
+]
 version = "0.1.0"
 copyright = "Copyright (c) 2026 PicoNote"
 category = "public.app-category.productivity"
 short_description = "A super lightweight markdown notepad"
+deb_depends = ["libxcb1", "libxkbcommon0", "libgtk-3-0"]
+linux_use_terminal = false
 
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"
