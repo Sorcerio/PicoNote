@@ -10,6 +10,7 @@ eframe = { version = "0.31", default-features = false, features = [
     "glow",
 ] }
 
+image = { version = "0.25", default-features = false, features = ["png"] }
 rfd = "0.15"
 serde = { version = "1", features = ["derive"] }
 confy = "0.6"

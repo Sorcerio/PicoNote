@@ -1941,6 +1941,7 @@ dependencies = [
  "confy",
  "eframe",
  "font-kit",
+ "image",
  "rfd",
  "serde",
 ]
