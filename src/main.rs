@@ -18,6 +18,18 @@ fn load_icon() -> IconData {
 }
 
 fn main() -> eframe::Result<()> {
+    let arg = std::env::args().nth(1);
+
+    if matches!(arg.as_deref(), Some("-h") | Some("--help")) {
+        println!("PicoNote - a lightweight Markdown editor\n");
+        println!("Usage: piconote [FILE]\n");
+        println!("  FILE    Optional path to a file to open on launch");
+        println!("  -h, --help  Show this help message");
+        std::process::exit(0);
+    }
+
+    let open_path = arg.map(std::path::PathBuf::from);
+
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([800.0, 600.0])
@@ -28,6 +40,6 @@ fn main() -> eframe::Result<()> {
     eframe::run_native(
         "PicoNote",
         native_options,
-        Box::new(|cc| Ok(Box::new(app::PicoNoteApp::new(cc)))),
+        Box::new(move |cc| Ok(Box::new(app::PicoNoteApp::new(cc, open_path)))),
     )
 }

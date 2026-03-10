@@ -26,15 +26,23 @@ pub struct PicoNoteApp {
 }
 
 impl PicoNoteApp {
-    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(cc: &eframe::CreationContext<'_>, open_path: Option<std::path::PathBuf>) -> Self {
         let config = config::load_config();
         theme::apply_theme(&cc.egui_ctx, &config.theme);
         if let Some(ref family) = config.font_family {
             apply_custom_font(&cc.egui_ctx, family);
         }
+
+        let (content, file_state) = match open_path.and_then(|p| {
+            std::fs::read_to_string(&p).ok().map(|c| (c, p))
+        }) {
+            Some((c, p)) => (c, FileState { path: Some(p), dirty: false }),
+            None => (String::new(), FileState::new()),
+        };
+
         Self {
-            content: String::new(),
-            file_state: FileState::new(),
+            content,
+            file_state,
             highlighter: MemoizedMarkdownHighlighter::default(),
             config,
             pending_action: None,
