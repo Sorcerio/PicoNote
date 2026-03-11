@@ -9,10 +9,8 @@
   * [Releases](#releases)
   * [Building](#building)
     * [For Development](#for-development)
-      * [Linux dependencies](#linux-dependencies)
     * [For Production](#for-production)
-      * [macOS app bundle](#macos-app-bundle)
-      * [Linux .deb package](#linux-deb-package)
+      * [macOS](#macos)
       * [Windows](#windows)
   * [Architecture](#architecture)
   * [Dependencies](#dependencies)
@@ -43,8 +41,7 @@
   * `Cmd/Ctrl+N` — New
   * `Cmd/Ctrl+Plus/Minus` — Adjust font size
 * **Status bar** with line count, character count, and file path
-* **Cross-platform** (macOS, Windows, Linux*)
-  * *Needs testing on Linux!*
+* **Cross-platform** (macOS, Windows)
 * **Tiny binary** (~5 MB release build)
 * **Preferences persist** across sessions
 
@@ -64,19 +61,11 @@ cargo build
 cargo run
 ```
 
-#### Linux dependencies
-
-Linux requires the following system packages before building:
-
-```sh
-sudo apt-get install -y libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev libgtk-3-dev
-```
-
 ### For Production
 
 The binary is fully self-contained with all license attributions viewable under `Help > Third-Party Licenses`.
 
-#### macOS app bundle
+#### macOS
 
 Produces a `.app` package with the correct icon, bundle identifier, and `Info.plist` for Finder/Dock integration:
 
@@ -87,24 +76,6 @@ cargo bundle --release
 ```
 
 The bundle can be found in: `target/release/bundle/osx/PicoNote.app`
-
-#### Linux .deb package
-
-Produces a `.deb` package with icons and a `.desktop` file for launcher integration. Requires `cargo-bundle`:
-
-```sh
-cargo install cargo-bundle
-python3 scripts/generate-licenses.py
-cargo bundle --release
-```
-
-The package can be found in: `target/release/bundle/deb/piconote_<version>_amd64.deb`
-
-Install it with:
-
-```sh
-sudo dpkg -i target/release/bundle/deb/piconote_*.deb
-```
 
 #### Windows
 
