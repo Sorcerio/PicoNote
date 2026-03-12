@@ -73,7 +73,10 @@ Produces a `.app` package with the correct icon, bundle identifier, and `Info.pl
 cargo install cargo-bundle
 python3 scripts/generate-licenses.py
 cargo bundle --release
+bash scripts/patch-macos-plist.sh
 ```
+
+The `patch-macos-plist.sh` script adds `CFBundleDocumentTypes` to the generated `Info.plist` so that macOS registers PicoNote as a handler for Markdown (`.md`, `.markdown`) and plain text (`.txt`) files in the "Open with..." menu.
 
 The bundle can be found in: `target/release/bundle/osx/PicoNote.app`
 

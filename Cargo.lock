@@ -1942,6 +1942,7 @@ dependencies = [
  "eframe",
  "font-kit",
  "image",
+ "objc2 0.5.2",
  "rfd",
  "serde",
  "winres",

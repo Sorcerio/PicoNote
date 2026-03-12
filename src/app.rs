@@ -6,10 +6,11 @@ use crate::highlighter::MemoizedMarkdownHighlighter;
 use crate::theme;
 
 /// What action is pending behind an unsaved-changes dialog.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 enum PendingAction {
     New,
     Open,
+    OpenPath(std::path::PathBuf),
     Quit,
 }
 
@@ -32,6 +33,9 @@ impl PicoNoteApp {
         if let Some(ref family) = config.font_family {
             apply_custom_font(&cc.egui_ctx, family);
         }
+
+        #[cfg(target_os = "macos")]
+        crate::macos_open::register_open_handler();
 
         let (content, file_state) = match open_path.and_then(|p| {
             std::fs::read_to_string(&p).ok().map(|c| (c, p))
@@ -79,6 +83,14 @@ impl PicoNoteApp {
         }
     }
 
+    fn open_path(&mut self, path: std::path::PathBuf) {
+        if let Ok(content) = std::fs::read_to_string(&path) {
+            self.content = content;
+            self.file_state.path = Some(path);
+            self.file_state.dirty = false;
+        }
+    }
+
     fn save(&mut self) {
         if let Some(path) = &self.file_state.path {
             let _ = file_ops::write_file(path, &self.content);
@@ -112,6 +124,7 @@ impl PicoNoteApp {
             match action {
                 PendingAction::New => self.new_file(),
                 PendingAction::Open => self.open(),
+                PendingAction::OpenPath(p) => self.open_path(p),
                 PendingAction::Quit => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
             }
         }
@@ -129,6 +142,22 @@ impl PicoNoteApp {
 impl eframe::App for PicoNoteApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         ctx.send_viewport_cmd(egui::ViewportCommand::Title(self.window_title()));
+
+        // --- Handle files opened via macOS "Open with..." ---
+        #[cfg(target_os = "macos")]
+        if self.pending_action.is_none() {
+            if let Ok(mut files) = crate::macos_open::OPEN_FILES.lock() {
+                if let Some(path) = files.pop() {
+                    files.clear();
+                    drop(files);
+                    if self.file_state.dirty {
+                        self.pending_action = Some(PendingAction::OpenPath(path));
+                    } else {
+                        self.open_path(path);
+                    }
+                }
+            }
+        }
 
         // --- Keyboard shortcuts ---
         let modifiers = ctx.input(|i| i.modifiers);
@@ -166,7 +195,7 @@ impl eframe::App for PicoNoteApp {
 
         // --- Unsaved changes dialog ---
         if self.pending_action.is_some() {
-            let action = self.pending_action;
+            let action = self.pending_action.clone();
             egui::Window::new("Unsaved Changes")
                 .collapsible(false)
                 .resizable(false)
@@ -177,12 +206,12 @@ impl eframe::App for PicoNoteApp {
                     ui.horizontal(|ui| {
                         if ui.button("Save").clicked() {
                             self.save();
-                            self.pending_action = action;
+                            self.pending_action = action.clone();
                             self.execute_pending(ctx);
                         }
                         if ui.button("Don't Save").clicked() {
                             self.file_state.dirty = false;
-                            self.pending_action = action;
+                            self.pending_action = action.clone();
                             self.execute_pending(ctx);
                         }
                         if ui.button("Cancel").clicked() {

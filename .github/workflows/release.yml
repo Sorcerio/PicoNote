@@ -29,6 +29,9 @@ jobs:
       - name: Bundle
         run: cargo bundle --release
 
+      - name: Patch Info.plist with document types
+        run: bash scripts/patch-macos-plist.sh
+
       - name: Zip
         run: zip -r PicoNote-${{ inputs.tag_name || github.ref_name }}-macos.zip target/release/bundle/osx/PicoNote.app
 

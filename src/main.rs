@@ -4,6 +4,8 @@ mod app;
 mod config;
 mod file_ops;
 mod highlighter;
+#[cfg(target_os = "macos")]
+mod macos_open;
 mod parser;
 mod theme;
 

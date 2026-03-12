@@ -16,6 +16,9 @@ serde = { version = "1", features = ["derive"] }
 confy = "0.6"
 font-kit = "0.14"
 
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.5"
+
 [package.metadata.bundle]
 name = "PicoNote"
 identifier = "com.piconote.app"
